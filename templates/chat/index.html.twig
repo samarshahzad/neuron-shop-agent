@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kiez Living · Shop Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/chat.css">
+</head>
+<body>
+<div class="app">
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark" aria-hidden="true">K</span>
+            <div>
+                <div class="brand-name">Kiez Living</div>
+                <div class="brand-sub">Shop assistant · Symfony + Neuron AI</div>
+            </div>
+        </div>
+        <div class="topbar-actions">
+            <span class="model-badge" title="Configured in .env / .env.local">{{ model }}</span>
+            <button type="button" class="btn-ghost" id="new-chat">New chat</button>
+        </div>
+    </header>
+
+    <main class="layout">
+        <section class="chat" aria-label="Chat">
+            <div class="messages" id="messages" aria-live="polite">
+                <div class="welcome" id="welcome">
+                    <h1>Hi! How can I help?</h1>
+                    <p>I can check your orders and search our products. Ask in English or German.</p>
+                    <div class="suggestions" id="suggestions">
+                        <button type="button" class="chip">Where is my order SO-1002?</button>
+                        <button type="button" class="chip">Wo ist meine Bestellung SO-1003?</button>
+                        <button type="button" class="chip">Which lamps are in stock?</button>
+                        <button type="button" class="chip">Show orders for lena.fischer@example.com</button>
+                        <button type="button" class="chip">Gifts under 30 €?</button>
+                    </div>
+                </div>
+            </div>
+
+            <form class="composer" id="composer" autocomplete="off">
+                <label for="input" class="visually-hidden">Your message</label>
+                <textarea id="input" rows="1" maxlength="2000" placeholder="Ask about an order or a product…" required></textarea>
+                <button type="submit" class="btn-send" id="send" aria-label="Send">
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5L4 12z" fill="currentColor"/></svg>
+                </button>
+            </form>
+        </section>
+
+        <aside class="panel" aria-label="Database">
+            <div class="panel-head">
+                <h2>Orders in the database</h2>
+                <button type="button" class="btn-link" id="refresh-orders">Refresh</button>
+            </div>
+            <p class="panel-hint">Live from the <code>orders</code> table. Click an order to ask about it.</p>
+            <ul class="orders" id="orders">
+                <li class="orders-empty">Loading…</li>
+            </ul>
+            <div class="panel-foot">
+                <strong>How it works:</strong> the agent decides which tool to call
+                (<code>find_order</code>, <code>list_customer_orders</code>, <code>search_products</code>),
+                the tool runs a SQL query, and the model answers with the real data.
+            </div>
+        </aside>
+    </main>
+</div>
+
+<script src="/js/chat.js"></script>
+</body>
+</html>

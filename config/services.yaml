@@ -1,0 +1,17 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'
+
+    # The AI provider is configured entirely through .env / .env.local
+    App\Neuron\AiProviderFactory:
+        arguments:
+            $provider: '%env(AI_PROVIDER)%'
+            $model: '%env(AI_MODEL)%'
+            $apiKey: '%env(AI_API_KEY)%'
+            $ollamaUrl: '%env(OLLAMA_URL)%'

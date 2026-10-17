@@ -1,0 +1,52 @@
+services:
+  # The Symfony app: PHP 8.4 + Composer, serves http://localhost:8000
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - vendor:/app/vendor   # keeps dependencies inside Docker (much faster on Windows/macOS)
+      - var:/app/var
+    environment:
+      # Real environment variables win over .env and .env.local,
+      # so inside Docker the app always uses the MySQL container.
+      DATABASE_URL: "mysql://shop:shop@mysql:3306/shop_agent?serverVersion=8.4&charset=utf8mb4"
+      # Ollama running on your computer (outside Docker)
+      OLLAMA_URL: "http://host.docker.internal:11434/api"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: shop_agent
+      MYSQL_USER: shop
+      MYSQL_PASSWORD: shop
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # TCP check (127.0.0.1), so it only passes once the real server accepts connections
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ushop", "-pshop"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # Browse the database at http://localhost:8081 (server: mysql, user: shop, password: shop)
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+  vendor:
+  var:
