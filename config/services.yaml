@@ -15,3 +15,11 @@ services:
             $model: '%env(AI_MODEL)%'
             $apiKey: '%env(AI_API_KEY)%'
             $ollamaUrl: '%env(OLLAMA_URL)%'
+
+    # Embeddings model for "similar products" (AI similarity), also from .env
+    App\Recommendation\EmbeddingsProviderFactory:
+        arguments:
+            $provider: '%env(EMBEDDINGS_PROVIDER)%'
+            $model: '%env(EMBEDDINGS_MODEL)%'
+            $apiKey: '%env(AI_API_KEY)%'
+            $ollamaUrl: '%env(OLLAMA_URL)%'

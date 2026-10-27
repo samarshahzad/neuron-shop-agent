@@ -12,7 +12,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:db:setup',
-    description: 'Creates the shop and chat tables and fills them with demo data.',
+    description: 'Creates the shop, chat and embeddings tables and fills them with demo data.',
 )]
 final class SetupDatabaseCommand extends Command
 {
@@ -33,10 +33,14 @@ final class SetupDatabaseCommand extends Command
         if ($input->getOption('reset')) {
             $this->database->drop();
             $io->note('Existing tables dropped.');
-        } elseif ($this->database->isInstalled()) {
-            $io->warning('The tables already exist. Run with --reset to recreate them (this deletes all data).');
+        } elseif ($this->database->isInstalled() && $this->database->isCurrent()) {
+            $io->writeln('Database is up to date. Run with --reset to recreate the demo data.');
 
             return Command::SUCCESS;
+        } elseif ($this->database->isInstalled()) {
+            // Created by an older version of this demo app: rebuild it with the new catalogue.
+            $io->note('The demo database is from an older version (no product descriptions or embeddings). Recreating it with the new catalogue; demo data and chat history are reset.');
+            $this->database->drop();
         }
 
         $this->database->create();

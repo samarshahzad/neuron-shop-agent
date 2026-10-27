@@ -10,13 +10,14 @@ use Doctrine\DBAL\Schema\Schema;
 use RuntimeException;
 
 /**
- * Creates the shop tables, the table Neuron uses for chat history,
- * and fills the shop with demo data. Works on SQLite, MySQL and PostgreSQL.
+ * Creates the shop tables, the table Neuron uses for chat history and the
+ * product embeddings table, and fills the shop with demo data.
+ * Works on SQLite, MySQL and PostgreSQL.
  */
 final class ShopDatabase
 {
     /** Tables in drop order (children before parents, because of foreign keys). */
-    private const TABLES = ['order_items', 'orders', 'products', 'customers', 'chat_messages'];
+    private const TABLES = ['product_embeddings', 'order_items', 'orders', 'products', 'customers', 'chat_messages'];
 
     public function __construct(private readonly Connection $connection)
     {
@@ -25,6 +26,28 @@ final class ShopDatabase
     public function isInstalled(): bool
     {
         return $this->connection->createSchemaManager()->tablesExist(['orders']);
+    }
+
+    /**
+     * False when the database was created by an older version of this app
+     * (for example products without a description, or no embeddings table).
+     */
+    public function isCurrent(): bool
+    {
+        $schemaManager = $this->connection->createSchemaManager();
+
+        if (!$schemaManager->tablesExist(['products', 'product_embeddings', 'chat_messages'])) {
+            return false;
+        }
+
+        $columns = array_map(
+            static fn ($column): string => strtolower($column->getName()),
+            $schemaManager->listTableColumns('products'),
+        );
+
+        return \in_array('description', $columns, true)
+            && \in_array('color', $columns, true)
+            && \in_array('material', $columns, true);
     }
 
     public function drop(): void
@@ -56,57 +79,28 @@ final class ShopDatabase
     {
         $now = new \DateTimeImmutable();
 
-        $customers = [
-            ['Lena Fischer', 'lena.fischer@example.com', 'Berlin'],
-            ['Jonas Weber', 'jonas.weber@example.com', 'Hamburg'],
-            ['Aylin Demir', 'aylin.demir@example.com', 'Köln'],
-            ['Marco Rossi', 'marco.rossi@example.com', 'München'],
-        ];
-
         $customerIds = [];
-        foreach ($customers as [$name, $email, $city]) {
+        foreach (DemoCatalogue::CUSTOMERS as [$name, $email, $city]) {
             $this->connection->insert('customers', ['name' => $name, 'email' => $email, 'city' => $city]);
             $customerIds[$email] = (int) $this->connection->lastInsertId();
         }
 
-        // sku, name, category, price in cents, stock
-        $products = [
-            ['KL-1001', 'Linen Cushion Cover, sage', 'Textiles', 2499, 42],
-            ['KL-1002', 'Wool Throw Blanket, grey', 'Textiles', 6999, 8],
-            ['KL-1003', 'Ceramic Vase, sand', 'Decoration', 3499, 15],
-            ['KL-1004', 'Scented Candle, fig & cedar', 'Decoration', 1899, 120],
-            ['KL-1005', 'Oak Picture Frame 30x40', 'Decoration', 2999, 0],
-            ['KL-1006', 'Stoneware Mug Set (4)', 'Kitchen', 3999, 25],
-            ['KL-1007', 'Bamboo Serving Board', 'Kitchen', 2799, 31],
-            ['KL-1008', 'Rattan Floor Lamp', 'Lighting', 14999, 4],
-            ['KL-1009', 'Glass Pendant Light', 'Lighting', 8999, 0],
-            ['KL-1010', 'Jute Rug 160x230', 'Textiles', 12999, 6],
-        ];
-
         $productPrices = [];
-        foreach ($products as [$sku, $name, $category, $price, $stock]) {
+        foreach (DemoCatalogue::PRODUCTS as [$sku, $name, $category, $color, $material, $price, $stock, $description]) {
             $this->connection->insert('products', [
                 'sku' => $sku,
                 'name' => $name,
                 'category' => $category,
+                'color' => $color,
+                'material' => $material,
+                'description' => $description,
                 'price_cents' => $price,
                 'stock' => $stock,
             ]);
             $productPrices[$sku] = [(int) $this->connection->lastInsertId(), $price];
         }
 
-        // order number, customer email, status, days ago, tracking code, [sku => quantity]
-        $orders = [
-            ['SO-1001', 'lena.fischer@example.com', 'delivered', 21, 'DHL-00340012345', ['KL-1001' => 2, 'KL-1004' => 1]],
-            ['SO-1002', 'jonas.weber@example.com', 'shipped', 3, 'DHL-00340067890', ['KL-1008' => 1]],
-            ['SO-1003', 'lena.fischer@example.com', 'processing', 1, null, ['KL-1002' => 1, 'KL-1003' => 1]],
-            ['SO-1004', 'aylin.demir@example.com', 'pending', 0, null, ['KL-1006' => 1, 'KL-1007' => 2]],
-            ['SO-1005', 'marco.rossi@example.com', 'cancelled', 9, null, ['KL-1009' => 2]],
-            ['SO-1006', 'aylin.demir@example.com', 'delivered', 40, 'HERMES-H1029384', ['KL-1010' => 1]],
-            ['SO-1007', 'jonas.weber@example.com', 'processing', 2, null, ['KL-1004' => 3, 'KL-1001' => 1]],
-        ];
-
-        foreach ($orders as [$number, $email, $status, $daysAgo, $tracking, $items]) {
+        foreach (DemoCatalogue::ORDERS as [$number, $email, $status, $daysAgo, $tracking, $items]) {
             $total = 0;
             foreach ($items as $sku => $quantity) {
                 $total += $productPrices[$sku][1] * $quantity;
@@ -132,7 +126,11 @@ final class ShopDatabase
             }
         }
 
-        return ['customers' => \count($customers), 'products' => \count($products), 'orders' => \count($orders)];
+        return [
+            'customers' => \count(DemoCatalogue::CUSTOMERS),
+            'products' => \count(DemoCatalogue::PRODUCTS),
+            'orders' => \count(DemoCatalogue::ORDERS),
+        ];
     }
 
     private function shopSchema(): Schema
@@ -152,10 +150,14 @@ final class ShopDatabase
         $products->addColumn('sku', 'string', ['length' => 20]);
         $products->addColumn('name', 'string', ['length' => 160]);
         $products->addColumn('category', 'string', ['length' => 60]);
+        $products->addColumn('color', 'string', ['length' => 60]);
+        $products->addColumn('material', 'string', ['length' => 60]);
+        $products->addColumn('description', 'text');
         $products->addColumn('price_cents', 'integer');
         $products->addColumn('stock', 'integer');
         $products->setPrimaryKey(['id']);
         $products->addUniqueIndex(['sku'], 'uniq_products_sku');
+        $products->addIndex(['category'], 'idx_products_category');
 
         $orders = $schema->createTable('orders');
         $orders->addColumn('id', 'integer', ['autoincrement' => true]);
@@ -181,6 +183,18 @@ final class ShopDatabase
         $items->addIndex(['product_id'], 'idx_items_product');
         $items->addForeignKeyConstraint('orders', ['order_id'], ['id'], ['onDelete' => 'CASCADE'], 'fk_items_order');
         $items->addForeignKeyConstraint('products', ['product_id'], ['id'], [], 'fk_items_product');
+
+        // One vector per product. content_hash tells us when the product text changed
+        // and the vector must be recalculated; model tells us which model made it.
+        $embeddings = $schema->createTable('product_embeddings');
+        $embeddings->addColumn('product_id', 'integer');
+        $embeddings->addColumn('model', 'string', ['length' => 120]);
+        $embeddings->addColumn('content_hash', 'string', ['length' => 64, 'fixed' => true]);
+        $embeddings->addColumn('dimensions', 'integer');
+        $embeddings->addColumn('vector', 'text');
+        $embeddings->addColumn('updated_at', 'datetime');
+        $embeddings->setPrimaryKey(['product_id']);
+        $embeddings->addForeignKeyConstraint('products', ['product_id'], ['id'], ['onDelete' => 'CASCADE'], 'fk_embeddings_product');
 
         return $schema;
     }

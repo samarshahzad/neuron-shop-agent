@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Customer\CustomerSession;
 use App\Neuron\AiProviderFactory;
 use App\Neuron\ChatService;
 use App\Repository\ShopRepository;
@@ -21,6 +22,7 @@ final class ChatController extends AbstractController
         private readonly ChatService $chat,
         private readonly ShopRepository $shop,
         private readonly AiProviderFactory $providerFactory,
+        private readonly CustomerSession $customerSession,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -48,7 +50,10 @@ final class ChatController extends AbstractController
         }
 
         try {
-            return $this->json($this->chat->send($threadId, $message));
+            // The signed-in customer comes from the session, never from the request body
+            $customer = $this->customerSession->current($request);
+
+            return $this->json($this->chat->send($threadId, $message, customer: $customer));
         } catch (Throwable $e) {
             $this->logger->error('Agent failed: '.$e->getMessage(), ['exception' => $e]);
 

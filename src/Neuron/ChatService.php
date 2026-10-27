@@ -19,11 +19,12 @@ final class ChatService
     }
 
     /**
+     * @param array{id: int, name: string, email: string}|null $customer The signed-in customer, if any
      * @return array{reply: string, tools_used: list<string>}
      */
-    public function send(string $threadId, string $text, ?AIProviderInterface $provider = null): array
+    public function send(string $threadId, string $text, ?AIProviderInterface $provider = null, ?array $customer = null): array
     {
-        $agent = $this->agentFactory->create($threadId, $provider);
+        $agent = $this->agentFactory->create($threadId, $provider, $customer);
 
         $knownIds = array_map(
             static fn (Message $message): string => $message->getId(),

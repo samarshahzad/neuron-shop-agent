@@ -6,6 +6,10 @@ use App\Database\ShopDatabase;
 use App\Neuron\AiProviderFactory;
 use App\Neuron\ChatService;
 use App\Neuron\ShopAgentFactory;
+use App\Recommendation\EmbeddingsProviderFactory;
+use App\Recommendation\ProductEmbeddingIndex;
+use App\Recommendation\RecommendationEngine;
+use App\Repository\CatalogueRepository;
 use App\Repository\ShopRepository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
@@ -33,9 +37,15 @@ final class ShopAgentTest extends TestCase
         $database->seed();
 
         $this->repository = new ShopRepository($this->connection);
+        $catalogue = new CatalogueRepository($this->connection);
         $factory = new ShopAgentFactory(
             new AiProviderFactory('ollama', 'test-model', '', 'http://localhost:11434/api'),
             $this->repository,
+            new RecommendationEngine(
+                $catalogue,
+                new ProductEmbeddingIndex($this->connection, $catalogue),
+                new EmbeddingsProviderFactory('none', '', '', ''),
+            ),
             $this->connection,
         );
         $this->chat = new ChatService($factory);
@@ -54,10 +64,17 @@ final class ShopAgentTest extends TestCase
 
     public function testProductSearchFilters(): void
     {
-        self::assertCount(2, $this->repository->searchProducts('', 25.0));
+        // 11 products cost 25 € or less; the tool returns at most 8 (default limit)
+        self::assertCount(8, $this->repository->searchProducts('', 25.0));
+        self::assertCount(11, $this->repository->searchProducts('', 25.0, false, 20));
+
+        // Category Lighting has 6 lamps, 1 is sold out (Glass Pendant Light)
         $inStockLighting = $this->repository->searchProducts('lighting', null, true);
-        self::assertCount(1, $inStockLighting);
-        self::assertSame('KL-1008', $inStockLighting[0]['sku']);
+        self::assertCount(5, $inStockLighting);
+        self::assertNotContains('KL-1009', array_column($inStockLighting, 'sku'));
+
+        // Search also looks at color, material and description
+        self::assertContains('KL-1032', array_column($this->repository->searchProducts('rattan'), 'sku'));
     }
 
     public function testAgentCallsToolAndSendsRealDataToTheModel(): void

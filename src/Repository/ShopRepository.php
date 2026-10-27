@@ -83,21 +83,22 @@ final class ShopRepository
     }
 
     /**
-     * Searches product name and category. An empty query lists products.
+     * Searches product name, category, color, material and description.
+     * An empty query lists products.
      *
      * @return list<array<string, mixed>>
      */
     public function searchProducts(string $query = '', ?float $maxPriceEur = null, bool $inStockOnly = false, int $limit = 8): array
     {
         $qb = $this->connection->createQueryBuilder()
-            ->select('sku', 'name', 'category', 'price_cents', 'stock')
+            ->select('sku', 'name', 'category', 'color', 'material', 'price_cents', 'stock')
             ->from('products')
             ->orderBy('price_cents')
             ->setMaxResults(max(1, min($limit, 20)));
 
         $query = trim($query);
         if ($query !== '') {
-            $qb->andWhere('LOWER(name) LIKE :q OR LOWER(category) LIKE :q')
+            $qb->andWhere('LOWER(name) LIKE :q OR LOWER(category) LIKE :q OR LOWER(color) LIKE :q OR LOWER(material) LIKE :q OR LOWER(description) LIKE :q')
                 ->setParameter('q', '%'.mb_strtolower($query).'%');
         }
 
@@ -114,6 +115,8 @@ final class ShopRepository
             'sku' => $row['sku'],
             'name' => $row['name'],
             'category' => $row['category'],
+            'color' => $row['color'],
+            'material' => $row['material'],
             'price_eur' => $this->euros($row['price_cents']),
             'in_stock' => (int) $row['stock'] > 0,
             'stock' => (int) $row['stock'],

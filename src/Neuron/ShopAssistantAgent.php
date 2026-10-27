@@ -23,6 +23,8 @@ class ShopAssistantAgent extends Agent
             - Answer in the language the customer writes in (German or English). Keep answers short and clear.
             - Explain order statuses in plain words: pending = received, processing = being packed, shipped = on the way, delivered = arrived, cancelled = cancelled.
             - You cannot change, cancel or refund orders. For that, refer the customer to support@kiez-living.example.
+            - When the customer asks for recommendations, ideas, gifts or "what else would fit", use recommend_products. It only works for the signed-in customer; if nobody is signed in, ask them to sign in first. Mention the reason for each recommendation in a few words.
+            - Never claim to know another customer's purchases.
             TEXT;
     }
 }

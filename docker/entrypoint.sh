@@ -3,11 +3,8 @@ set -e
 
 cd /app
 
-# 1. Install PHP dependencies on first start
-if [ ! -f vendor/autoload_runtime.php ]; then
-    echo "Installing Composer dependencies (first start, takes a minute)..."
-    composer install --no-interaction --prefer-dist --no-progress
-fi
+# 1. Install PHP dependencies (fast when nothing changed)
+composer install --no-interaction --prefer-dist --no-progress
 
 # 2. Create tables + demo data (skipped automatically if they already exist).
 #    Retries while MySQL finishes starting.
@@ -22,7 +19,11 @@ until php bin/console app:db:setup --no-interaction; do
     sleep 3
 done
 
-# 3. Start the web server
+# 3. Create AI vectors for new or changed products (for "similar products").
+#    If the embedding model is missing, the app still works with rule-based recommendations.
+php bin/console app:products:embed --no-interaction || echo "Embeddings skipped: recommendations use rules for now."
+
+# 4. Start the web server
 echo ""
 echo "  Kiez Living shop assistant is running: http://localhost:8000"
 echo ""

@@ -19,23 +19,36 @@
                 <div class="brand-sub">Shop assistant · Symfony + Neuron AI</div>
             </div>
         </div>
+
+        <nav class="tabs" aria-label="Views">
+            <button type="button" class="tab is-active" data-view="assistant" aria-pressed="true">Assistant</button>
+            <button type="button" class="tab" data-view="products" aria-pressed="false">Products</button>
+        </nav>
+
         <div class="topbar-actions">
             <span class="model-badge" title="Configured in .env / .env.local">{{ model }}</span>
-            <button type="button" class="btn-ghost" id="new-chat">New chat</button>
+            <div class="account" id="account">
+                <button type="button" class="btn-ghost" id="sign-in">Sign in</button>
+            </div>
         </div>
     </header>
 
-    <main class="layout">
+    {# ---------- Assistant view ---------- #}
+    <main class="layout view" id="view-assistant">
         <section class="chat" aria-label="Chat">
+            <div class="chat-head">
+                <span class="chat-title">Chat</span>
+                <button type="button" class="btn-link" id="new-chat">New chat</button>
+            </div>
             <div class="messages" id="messages" aria-live="polite">
                 <div class="welcome" id="welcome">
                     <h1>Hi! How can I help?</h1>
-                    <p>I can check your orders and search our products. Ask in English or German.</p>
+                    <p>I can check orders, search products and recommend things that go with what you bought. Ask in English or German.</p>
                     <div class="suggestions" id="suggestions">
                         <button type="button" class="chip">Where is my order SO-1002?</button>
                         <button type="button" class="chip">Wo ist meine Bestellung SO-1003?</button>
+                        <button type="button" class="chip">What else would go with my order?</button>
                         <button type="button" class="chip">Which lamps are in stock?</button>
-                        <button type="button" class="chip">Show orders for lena.fischer@example.com</button>
                         <button type="button" class="chip">Gifts under 30 €?</button>
                     </div>
                 </div>
@@ -50,23 +63,60 @@
             </form>
         </section>
 
-        <aside class="panel" aria-label="Database">
-            <div class="panel-head">
-                <h2>Orders in the database</h2>
-                <button type="button" class="btn-link" id="refresh-orders">Refresh</button>
-            </div>
-            <p class="panel-hint">Live from the <code>orders</code> table. Click an order to ask about it.</p>
-            <ul class="orders" id="orders">
-                <li class="orders-empty">Loading…</li>
-            </ul>
-            <div class="panel-foot">
-                <strong>How it works:</strong> the agent decides which tool to call
-                (<code>find_order</code>, <code>list_customer_orders</code>, <code>search_products</code>),
-                the tool runs a SQL query, and the model answers with the real data.
-            </div>
+        <aside class="panel" aria-label="Your account" id="side-panel">
+            {# Filled by chat.js: signed-out view (all orders) or signed-in view (your orders + recommendations) #}
+            <p class="orders-empty">Loading…</p>
         </aside>
     </main>
+
+    {# ---------- Products view ---------- #}
+    <main class="products-view view" id="view-products" hidden>
+        <div class="products-head">
+            <div>
+                <h1 class="products-title">Products</h1>
+                <p class="panel-hint" id="similarity-hint"></p>
+            </div>
+            <div class="filters" id="filters" role="group" aria-label="Filter by category"></div>
+        </div>
+        <div class="product-grid" id="product-grid"></div>
+    </main>
 </div>
+
+{# ---------- Sign-in dialog ---------- #}
+<dialog class="dialog" id="sign-in-dialog" aria-labelledby="sign-in-title">
+    <form method="dialog" class="dialog-close-row">
+        <h2 id="sign-in-title">Sign in</h2>
+        <button class="btn-link" value="cancel" aria-label="Close">Close</button>
+    </form>
+
+    <h3 class="dialog-sub">Demo customers</h3>
+    <p class="panel-hint">Pick a customer to see their orders and recommendations.</p>
+    <ul class="customer-list" id="customer-list"></ul>
+
+    <div class="divider"><span>or</span></div>
+
+    <h3 class="dialog-sub">Email + order number</h3>
+    <form class="order-login" id="order-login" novalidate>
+        <label>Email
+            <input type="email" name="email" autocomplete="email" placeholder="lena.fischer@example.com" required maxlength="180">
+        </label>
+        <label>Order number
+            <input type="text" name="orderNumber" placeholder="SO-1001" required maxlength="20">
+        </label>
+        <p class="form-error" id="login-error" role="alert" hidden></p>
+        <button type="submit" class="btn-primary">Sign in</button>
+    </form>
+</dialog>
+
+{# ---------- Similar products dialog ---------- #}
+<dialog class="dialog dialog-wide" id="similar-dialog" aria-labelledby="similar-title">
+    <form method="dialog" class="dialog-close-row">
+        <h2 id="similar-title">Similar products</h2>
+        <button class="btn-link" value="cancel" aria-label="Close">Close</button>
+    </form>
+    <p class="panel-hint" id="similar-sub"></p>
+    <div class="rec-list" id="similar-list"></div>
+</dialog>
 
 <script src="/js/chat.js"></script>
 </body>
